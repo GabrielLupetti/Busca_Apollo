@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Integração Apollo & Power Automate</title>
+    <title>Gerador de URL - Apollo</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -83,7 +83,7 @@
             background-color: #2980b9;
         }
 
-        /* Estilos dos campos de Tags (estilo Apollo) */
+        /* Estilos dos campos de Tags */
         .tag-container {
             display: flex;
             flex-wrap: wrap;
@@ -140,6 +140,40 @@
             font-family: inherit;
             background: transparent;
         }
+
+        /* Bloco de Resultado */
+        .result-card {
+            display: none;
+            background: #fff;
+            padding: 20px 25px;
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
+            border: 2px solid #3498db;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .result-card h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .url-box {
+            width: 100%;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+        .btn-open {
+            background-color: #2ecc71;
+        }
+        .btn-open:hover {
+            background-color: #27ae60;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: scale(0.9); }
             to { opacity: 1; transform: scale(1); }
@@ -154,7 +188,7 @@
     <form id="apolloForm">
         <div class="card">
             <div class="form-group">
-                <label>Nome das Empresas</label>
+                <label>Nome/Domínio das Empresas</label>
                 <div class="tag-container" id="companiesContainer">
                     <input type="text" class="tag-input" id="companyNameInput" placeholder="Digite ou cole empresas e aperte Enter">
                 </div>
@@ -194,8 +228,15 @@
             </div>
         </div>
 
-        <button type="submit">Preparar Dados para Integração</button>
+        <button type="submit">Gerar URL do Apollo</button>
     </form>
+
+    <div class="result-card" id="resultCard">
+        <h3>Link de Busca Gerado!</h3>
+        <p>Abaixo está a URL estruturada com todos os filtros que você inseriu:</p>
+        <div class="url-box" id="urlDisplay"></div>
+        <button type="button" class="btn-open" id="btnOpenLink">Abrir Busca no Apollo</button>
+    </div>
 </div>
 
 <script>
@@ -203,13 +244,10 @@
     function setupTagInput(containerId, inputId) {
         const container = document.getElementById(containerId);
         const input = document.getElementById(inputId);
-        const tags = []; // Array que armazena as tags deste campo
+        const tags = [];
 
         function renderTags() {
-            // Remove os elementos visuais antigos para recriar a lista limpa
             container.querySelectorAll('.tag').forEach(el => el.remove());
-            
-            // Adiciona as tags antes do campo de input
             tags.forEach((tagText, index) => {
                 const tagEl = document.createElement('div');
                 tagEl.className = 'tag';
@@ -217,10 +255,9 @@
                 container.insertBefore(tagEl, input);
             });
 
-            // Configura os botões "x" de excluir a tag
             container.querySelectorAll('.remove-tag').forEach(btn => {
                 btn.addEventListener('click', function(e) {
-                    e.stopPropagation(); // Evita focar no input quando clica no X
+                    e.stopPropagation();
                     const idx = parseInt(this.getAttribute('data-index'));
                     tags.splice(idx, 1);
                     renderTags();
@@ -229,7 +266,6 @@
         }
 
         function addTags(text) {
-            // Quebra o texto usando novas linhas, vírgulas ou tabulações (útil para planilhas)
             const newTags = text.split(/[\n,\t]+/).map(t => t.trim()).filter(t => t.length > 0);
             newTags.forEach(t => {
                 if (!tags.includes(t)) {
@@ -239,62 +275,89 @@
             renderTags();
         }
 
-        // Eventos de teclado (Enter e Vírgula para adicionar, Backspace para apagar a última se estiver vazio)
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ',') {
                 e.preventDefault();
                 addTags(this.value);
                 this.value = '';
             } else if (e.key === 'Backspace' && this.value === '' && tags.length > 0) {
-                tags.pop(); // Remove a última tag da lista
+                tags.pop();
                 renderTags();
             }
         });
 
-        // Evento de Colar (Paste) -> Quando cola da planilha (Excel/Sheets)
         input.addEventListener('paste', function(e) {
             e.preventDefault();
             const pasteData = (e.clipboardData || window.clipboardData).getData('text');
             addTags(pasteData);
         });
 
-        // Clicar em qualquer lugar da caixa foca no input
         container.addEventListener('click', function(e) {
             if (e.target === container) {
                 input.focus();
             }
         });
 
-        return {
-            getTags: () => [...tags]
-        };
+        return { getTags: () => [...tags] };
     }
 
-    // Inicializando os campos de Tag
     const companiesManager = setupTagInput('companiesContainer', 'companyNameInput');
     const keywordsManager = setupTagInput('keywordsContainer', 'keywordsInput');
     const titlesManager = setupTagInput('titlesContainer', 'titlesInput');
+
+    let urlFinalApollo = "";
 
     document.getElementById('apolloForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
         const employeesMin = document.getElementById('employeesMin').value;
         const employeesMax = document.getElementById('employeesMax').value;
+        const resultCard = document.getElementById('resultCard');
+        const urlDisplay = document.getElementById('urlDisplay');
 
-        // Montagem do pacote de dados (Payload) final que será enviado
-        const payload = {
-            empresas: companiesManager.getTags(), // Agora empresas também é uma lista
-            funcionariosRange: {
-                minimo: employeesMin ? parseInt(employeesMin, 10) : null,
-                maximo: employeesMax ? parseInt(employeesMax, 10) : null
-            },
-            palavrasChaves: keywordsManager.getTags(),
-            cargos: titlesManager.getTags()
-        };
+        // Construção da URL de busca da interface WEB do Apollo (Modo visual do Usuário)
+        const baseUrl = "https://app.apollo.io/#/people";
+        const params = new URLSearchParams();
 
-        // Simulação do resultado
-        console.log('Dados formatados prontos para envio:', payload);
-        alert('Dados processados! Abra o console do navegador (F12) para ver a separação feita em forma de listas/arrays.');
+        // Insere o status padrão de busca na aba de pessoas do Apollo
+        params.append('finderViewMode', 'candidate');
+
+        // Tratamento dos Filtros para o formato que a plataforma web lê na URL
+        const empresas = companiesManager.getTags();
+        if (empresas.length > 0) {
+            params.append('organizationDomains', empresas.join('\n'));
+        }
+
+        const cargos = titlesManager.getTags();
+        if (cargos.length > 0) {
+            params.append('personTitles', cargos.join('\n'));
+        }
+
+        const palavrasChaves = keywordsManager.getTags();
+        if (palavrasChaves.length > 0) {
+            params.append('qKeywords', keywordsChaves.join(','));
+        }
+
+        // Configuração de tamanho de empresa (Mínimo e Máximo)
+        if (employeesMin || employeesMax) {
+            const min = employeesMin ? parseInt(employeesMin, 10) : '';
+            const max = employeesMax ? parseInt(employeesMax, 10) : '';
+            params.append('organizationNumEmployees', `${min},${max}`);
+        }
+
+        // Junta tudo no link de visualização estruturado do Apollo
+        urlFinalApollo = `${baseUrl}?${params.toString()}`;
+
+        // Exibe na tela para o usuário
+        urlDisplay.innerText = urlFinalApollo;
+        resultCard.style.display = "block";
+    });
+
+    // Ação do botão para abrir o link gerado em uma nova aba
+    document.getElementById('btnOpenLink').addEventListener('click', function() {
+        if (urlFinalApollo) {
+            window.open(urlFinalApollo, '_blank');
+        }
     });
 </script>
 
