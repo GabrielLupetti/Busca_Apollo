@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integração Apollo & Power Automate</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+            margin: 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: #fff;
+            padding: 20px 25px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        .range-group {
+            display: flex;
+            gap: 15px;
+        }
+        .range-group .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .help-text {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        /* Estilos dos campos de Tags (estilo Apollo) */
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            min-height: 42px;
+            background: #fff;
+            cursor: text;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .tag-container:focus-within {
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        .tag {
+            display: flex;
+            align-items: center;
+            background-color: #e1f0fa;
+            color: #2980b9;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+        .tag .remove-tag {
+            margin-left: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #2980b9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            line-height: 1;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .tag .remove-tag:hover {
+            background-color: #c0392b;
+            color: white;
+        }
+        .tag-input {
+            border: none;
+            outline: none;
+            flex-grow: 1;
+            min-width: 150px;
+            font-size: 14px;
+            padding: 4px 0;
+            font-family: inherit;
+            background: transparent;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Configuração de Busca - Apollo</h1>
+    
+    <form id="apolloForm">
+        <div class="card">
+            <div class="form-group">
+                <label>Nome das Empresas</label>
+                <div class="tag-container" id="companiesContainer">
+                    <input type="text" class="tag-input" id="companyNameInput" placeholder="Digite ou cole empresas e aperte Enter">
+                </div>
+                <div class="help-text">Você pode colar várias empresas de uma planilha.</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <label>Número de Funcionários (Custom Range)</label>
+            <div class="range-group">
+                <div class="form-group">
+                    <input type="number" id="employeesMin" placeholder="Mínimo (Ex: 50)" min="1">
+                </div>
+                <div class="form-group">
+                    <input type="number" id="employeesMax" placeholder="Máximo (Ex: 200)" min="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="form-group">
+                <label>Palavras-Chaves da Empresa</label>
+                <div class="tag-container" id="keywordsContainer">
+                    <input type="text" class="tag-input" id="keywordsInput" placeholder="Digite ou cole palavras-chaves e aperte Enter">
+                </div>
+                <div class="help-text">Cole de uma planilha ou digite separando por vírgula.</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="form-group">
+                <label>Cargo de Funcionários</label>
+                <div class="tag-container" id="titlesContainer">
+                    <input type="text" class="tag-input" id="titlesInput" placeholder="Digite ou cole cargos e aperte Enter">
+                </div>
+                <div class="help-text">Cole de uma planilha ou digite separando por vírgula.</div>
+            </div>
+        </div>
+
+        <button type="submit">Preparar Dados para Integração</button>
+    </form>
+</div>
+
+<script>
+    // Função universal para criar campos com comportamento de Tags (balõezinhos)
+    function setupTagInput(containerId, inputId) {
+        const container = document.getElementById(containerId);
+        const input = document.getElementById(inputId);
+        const tags = []; // Array que armazena as tags deste campo
+
+        function renderTags() {
+            // Remove os elementos visuais antigos para recriar a lista limpa
+            container.querySelectorAll('.tag').forEach(el => el.remove());
+            
+            // Adiciona as tags antes do campo de input
+            tags.forEach((tagText, index) => {
+                const tagEl = document.createElement('div');
+                tagEl.className = 'tag';
+                tagEl.innerHTML = `<span>${tagText}</span> <span class="remove-tag" data-index="${index}">&times;</span>`;
+                container.insertBefore(tagEl, input);
+            });
+
+            // Configura os botões "x" de excluir a tag
+            container.querySelectorAll('.remove-tag').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Evita focar no input quando clica no X
+                    const idx = parseInt(this.getAttribute('data-index'));
+                    tags.splice(idx, 1);
+                    renderTags();
+                });
+            });
+        }
+
+        function addTags(text) {
+            // Quebra o texto usando novas linhas, vírgulas ou tabulações (útil para planilhas)
+            const newTags = text.split(/[\n,\t]+/).map(t => t.trim()).filter(t => t.length > 0);
+            newTags.forEach(t => {
+                if (!tags.includes(t)) {
+                    tags.push(t);
+                }
+            });
+            renderTags();
+        }
+
+        // Eventos de teclado (Enter e Vírgula para adicionar, Backspace para apagar a última se estiver vazio)
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                addTags(this.value);
+                this.value = '';
+            } else if (e.key === 'Backspace' && this.value === '' && tags.length > 0) {
+                tags.pop(); // Remove a última tag da lista
+                renderTags();
+            }
+        });
+
+        // Evento de Colar (Paste) -> Quando cola da planilha (Excel/Sheets)
+        input.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            addTags(pasteData);
+        });
+
+        // Clicar em qualquer lugar da caixa foca no input
+        container.addEventListener('click', function(e) {
+            if (e.target === container) {
+                input.focus();
+            }
+        });
+
+        return {
+            getTags: () => [...tags]
+        };
+    }
+
+    // Inicializando os campos de Tag
+    const companiesManager = setupTagInput('companiesContainer', 'companyNameInput');
+    const keywordsManager = setupTagInput('keywordsContainer', 'keywordsInput');
+    const titlesManager = setupTagInput('titlesContainer', 'titlesInput');
+
+    document.getElementById('apolloForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const employeesMin = document.getElementById('employeesMin').value;
+        const employeesMax = document.getElementById('employeesMax').value;
+
+        // Montagem do pacote de dados (Payload) final que será enviado
+        const payload = {
+            empresas: companiesManager.getTags(), // Agora empresas também é uma lista
+            funcionariosRange: {
+                minimo: employeesMin ? parseInt(employeesMin, 10) : null,
+                maximo: employeesMax ? parseInt(employeesMax, 10) : null
+            },
+            palavrasChaves: keywordsManager.getTags(),
+            cargos: titlesManager.getTags()
+        };
+
+        // Simulação do resultado
+        console.log('Dados formatados prontos para envio:', payload);
+        alert('Dados processados! Abra o console do navegador (F12) para ver a separação feita em forma de listas/arrays.');
+    });
+</script>
+
+</body>
+</html>
