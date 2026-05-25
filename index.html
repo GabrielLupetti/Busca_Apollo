@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de URL - Apollo</title>
+    <title>Integração Apollo & Power Automate</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -83,7 +83,7 @@
             background-color: #2980b9;
         }
 
-        /* Estilos dos campos de Tags */
+        /* Estilos dos campos de Tags (estilo Apollo) */
         .tag-container {
             display: flex;
             flex-wrap: wrap;
@@ -141,9 +141,9 @@
             background: transparent;
         }
 
-        /* Bloco de Resultado */
+        /* ESTILO DO NOVO BLOCO DE RESULTADO */
         .result-card {
-            display: none;
+            display: none; /* Começa escondido */
             background: #fff;
             padding: 20px 25px;
             margin-top: 20px;
@@ -155,6 +155,7 @@
         .result-card h3 {
             margin-top: 0;
             color: #2c3e50;
+            font-size: 18px;
         }
         .url-box {
             width: 100%;
@@ -167,15 +168,31 @@
             word-break: break-all;
             margin-bottom: 15px;
             box-sizing: border-box;
+            color: #333;
+            max-height: 120px;
+            overflow-y: auto;
         }
-        .btn-open {
+        .btn-group-result {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-copy {
             background-color: #2ecc71;
+            margin-top: 0;
         }
-        .btn-open:hover {
+        .btn-copy:hover {
             background-color: #27ae60;
         }
+        .btn-open {
+            background-color: #95a5a6;
+            margin-top: 0;
+        }
+        .btn-open:hover {
+            background-color: #7f8c8d;
+        }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
+            from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
         }
     </style>
@@ -188,7 +205,7 @@
     <form id="apolloForm">
         <div class="card">
             <div class="form-group">
-                <label>Nome/Domínio das Empresas</label>
+                <label>Nome das Empresas</label>
                 <div class="tag-container" id="companiesContainer">
                     <input type="text" class="tag-input" id="companyNameInput" placeholder="Digite ou cole empresas e aperte Enter">
                 </div>
@@ -232,15 +249,18 @@
     </form>
 
     <div class="result-card" id="resultCard">
-        <h3>Link de Busca Gerado!</h3>
-        <p>Abaixo está a URL estruturada com todos os filtros que você inseriu:</p>
+        <h3>Link de Busca Gerado com Sucesso!</h3>
+        <p>A URL abaixo contém todos os filtros estruturados em formato compatível com o Apollo:</p>
         <div class="url-box" id="urlDisplay"></div>
-        <button type="button" class="btn-open" id="btnOpenLink">Abrir Busca no Apollo</button>
+        
+        <div class="btn-group-result">
+            <button type="button" class="btn-copy" id="btnCopyLink">Copiar Link</button>
+            <button type="button" class="btn-open" id="btnOpenLink">Abrir no Apollo</button>
+        </div>
     </div>
 </div>
 
 <script>
-    // Função universal para criar campos com comportamento de Tags (balõezinhos)
     function setupTagInput(containerId, inputId) {
         const container = document.getElementById(containerId);
         const input = document.getElementById(inputId);
@@ -315,16 +335,17 @@
         const resultCard = document.getElementById('resultCard');
         const urlDisplay = document.getElementById('urlDisplay');
 
-        // Construção da URL de busca da interface WEB do Apollo (Modo visual do Usuário)
+        // Construção limpa da URL de busca da interface do Apollo
         const baseUrl = "https://app.apollo.io/#/people";
         const params = new URLSearchParams();
 
-        // Insere o status padrão de busca na aba de pessoas do Apollo
+        // Define o modo de visualização padrão
         params.append('finderViewMode', 'candidate');
 
-        // Tratamento dos Filtros para o formato que a plataforma web lê na URL
+        // Mapeia as listas coletadas nas caixas de tags
         const empresas = companiesManager.getTags();
         if (empresas.length > 0) {
+            // O Apollo aceita domínios ou nomes separados por quebra de linha codificada na URL
             params.append('organizationDomains', empresas.join('\n'));
         }
 
@@ -335,25 +356,42 @@
 
         const palavrasChaves = keywordsManager.getTags();
         if (palavrasChaves.length > 0) {
-            params.append('qKeywords', keywordsChaves.join(','));
+            params.append('qKeywords', palavrasChaves.join(','));
         }
 
-        // Configuração de tamanho de empresa (Mínimo e Máximo)
+        // Adiciona a faixa de tamanho de funcionários se preenchida
         if (employeesMin || employeesMax) {
             const min = employeesMin ? parseInt(employeesMin, 10) : '';
             const max = employeesMax ? parseInt(employeesMax, 10) : '';
             params.append('organizationNumEmployees', `${min},${max}`);
         }
 
-        // Junta tudo no link de visualização estruturado do Apollo
+        // Gera a URL final estruturada
         urlFinalApollo = `${baseUrl}?${params.toString()}`;
 
-        // Exibe na tela para o usuário
+        // Atualiza a interface inserindo o texto na caixinha e tornando o bloco visível
         urlDisplay.innerText = urlFinalApollo;
         resultCard.style.display = "block";
+        
+        // Rola a página suavemente até o resultado para facilitar a visualização
+        resultCard.scrollIntoView({ behavior: 'smooth' });
     });
 
-    // Ação do botão para abrir o link gerado em uma nova aba
+    // Função para o botão de Copiar
+    document.getElementById('btnCopyLink').addEventListener('click', function() {
+        if (!urlFinalApollo) return;
+        navigator.clipboard.writeText(urlFinalApollo).then(() => {
+            const originalText = this.innerText;
+            this.innerText = "Copiado!";
+            this.style.backgroundColor = "#27ae60";
+            setTimeout(() => {
+                this.innerText = originalText;
+                this.style.backgroundColor = "#2ecc71";
+            }, 2000);
+        });
+    });
+
+    // Função para o botão de Abrir Direto
     document.getElementById('btnOpenLink').addEventListener('click', function() {
         if (urlFinalApollo) {
             window.open(urlFinalApollo, '_blank');
