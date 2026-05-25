@@ -141,9 +141,9 @@
             background: transparent;
         }
 
-        /* ESTILO DO NOVO BLOCO DE RESULTADO */
+        /* Estilo do bloco de resultado */
         .result-card {
-            display: none; /* Começa escondido */
+            display: none;
             background: #fff;
             padding: 20px 25px;
             margin-top: 20px;
@@ -250,7 +250,7 @@
 
     <div class="result-card" id="resultCard">
         <h3>Link de Busca Gerado com Sucesso!</h3>
-        <p>A URL abaixo contém todos os filtros estruturados em formato compatível com o Apollo:</p>
+        <p>A URL abaixo foi estruturada de forma idêntica à busca manual do Apollo:</p>
         <div class="url-box" id="urlDisplay"></div>
         
         <div class="btn-group-result">
@@ -327,6 +327,11 @@
 
     let urlFinalApollo = "";
 
+    // Função customizada para encodar mantendo %20 em vez de +
+    function strictEncode(str) {
+        return encodeURIComponent(str).replace(/%20/g, '%20');
+    }
+
     document.getElementById('apolloForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -335,49 +340,51 @@
         const resultCard = document.getElementById('resultCard');
         const urlDisplay = document.getElementById('urlDisplay');
 
-        // Construção limpa da URL de busca da interface do Apollo
-        const baseUrl = "https://app.apollo.io/#/people";
-        const params = new URLSearchParams();
+        // Estruturação obrigatória de parâmetros iniciais idêntica à busca manual
+        let urlParts = [
+            "page=1",
+            "finderViewMode=candidate",
+            "sortByField=%5Bnone%5D",
+            "sortAscending=false"
+        ];
 
-        // Define o modo de visualização padrão
-        params.append('finderViewMode', 'candidate');
-
-        // Mapeia as listas coletadas nas caixas de tags
+        // Processamento das Empresas (Une com quebra de linha \n e codifica estritamente)
         const empresas = companiesManager.getTags();
         if (empresas.length > 0) {
-            // O Apollo aceita domínios ou nomes separados por quebra de linha codificada na URL
-            params.append('organizationDomains', empresas.join('\n'));
+            const companiesString = empresas.join('\n');
+            urlParts.push("organizationDomains=" + strictEncode(companiesString));
         }
 
+        // Processamento dos Cargos
         const cargos = titlesManager.getTags();
         if (cargos.length > 0) {
-            params.append('personTitles', cargos.join('\n'));
+            const titlesString = cargos.join('\n');
+            urlParts.push("personTitles=" + strictEncode(titlesString));
         }
 
+        // Processamento de Palavras-Chaves
         const palavrasChaves = keywordsManager.getTags();
         if (palavrasChaves.length > 0) {
-            params.append('qKeywords', palavrasChaves.join(','));
+            urlParts.push("qKeywords=" + strictEncode(palavrasChaves.join(',')));
         }
 
-        // Adiciona a faixa de tamanho de funcionários se preenchida
+        // Processamento do tamanho de funcionários
         if (employeesMin || employeesMax) {
             const min = employeesMin ? parseInt(employeesMin, 10) : '';
             const max = employeesMax ? parseInt(employeesMax, 10) : '';
-            params.append('organizationNumEmployees', `${min},${max}`);
+            urlParts.push("organizationNumEmployees=" + strictEncode(`${min},${max}`));
         }
 
-        // Gera a URL final estruturada
-        urlFinalApollo = `${baseUrl}?${params.toString()}`;
+        // Junta a URL base com as partes corrigidas usando "&"
+        urlFinalApollo = "https://app.apollo.io/#/people?" + urlParts.join('&');
 
-        // Atualiza a interface inserindo o texto na caixinha e tornando o bloco visível
+        // Exibe o link idêntico na interface
         urlDisplay.innerText = urlFinalApollo;
         resultCard.style.display = "block";
         
-        // Rola a página suavemente até o resultado para facilitar a visualização
         resultCard.scrollIntoView({ behavior: 'smooth' });
     });
 
-    // Função para o botão de Copiar
     document.getElementById('btnCopyLink').addEventListener('click', function() {
         if (!urlFinalApollo) return;
         navigator.clipboard.writeText(urlFinalApollo).then(() => {
@@ -391,7 +398,6 @@
         });
     });
 
-    // Função para o botão de Abrir Direto
     document.getElementById('btnOpenLink').addEventListener('click', function() {
         if (urlFinalApollo) {
             window.open(urlFinalApollo, '_blank');
