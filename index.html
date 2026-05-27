@@ -141,58 +141,31 @@
             background: transparent;
         }
 
-        /* Estilo do bloco de resultado */
-        .result-card {
+        /* Área de Resultado Limpo para Automação */
+        .result-box {
             display: none;
-            background: #fff;
-            padding: 20px 25px;
-            margin-top: 20px;
+            background: white;
+            padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
-            border: 2px solid #3498db;
-            animation: fadeIn 0.3s ease-in-out;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border: 2px solid #2ecc71;
+            margin-top: 20px;
         }
-        .result-card h3 {
-            margin-top: 0;
-            color: #2c3e50;
-            font-size: 18px;
-        }
-        .url-box {
+        .output-textarea {
             width: 100%;
-            padding: 12px;
-            background: #f8f9fa;
+            height: 120px;
+            padding: 10px;
+            box-sizing: border-box;
             border: 1px solid #ddd;
             border-radius: 6px;
             font-family: monospace;
-            font-size: 13px;
-            word-break: break-all;
-            margin-bottom: 15px;
-            box-sizing: border-box;
-            color: #333;
-            max-height: 120px;
-            overflow-y: auto;
-        }
-        .btn-group-result {
-            display: flex;
-            gap: 10px;
-        }
-        .btn-copy {
-            background-color: #2ecc71;
-            margin-top: 0;
-        }
-        .btn-copy:hover {
-            background-color: #27ae60;
-        }
-        .btn-open {
-            background-color: #95a5a6;
-            margin-top: 0;
-        }
-        .btn-open:hover {
-            background-color: #7f8c8d;
+            background: #f8f9fa;
+            resize: none;
+            margin-bottom: 10px;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
+            from { opacity: 0; transform: scale(0.9); }
             to { opacity: 1; transform: scale(1); }
         }
     </style>
@@ -245,18 +218,19 @@
             </div>
         </div>
 
-        <button type="submit">Gerar URL do Apollo</button>
+        <button type="submit">Preparar Dados para Integração</button>
     </form>
 
-    <div class="result-card" id="resultCard">
-        <h3>Link de Busca Gerado com Sucesso!</h3>
-        <p>A URL abaixo foi estruturada de forma idêntica à busca manual do Apollo:</p>
-        <div class="url-box" id="urlDisplay"></div>
+    <div id="automationResult" class="result-box">
+        <h3 style="color: #27ae60; margin-top: 0;">Dados Prontos para o Power Automate</h3>
         
-        <div class="btn-group-result">
-            <button type="button" class="btn-copy" id="btnCopyLink">Copiar Link</button>
-            <button type="button" class="btn-open" id="btnOpenLink">Abrir no Apollo</button>
-        </div>
+        <label>Lista de Empresas (Limpa):</label>
+        <textarea id="outputCompanies" class="output-textarea" readonly></textarea>
+
+        <label>Lista de Cargos (Limpa):</label>
+        <textarea id="outputTitles" class="output-textarea" readonly></textarea>
+        
+        <button type="button" style="background-color: #95a5a6;" onclick="window.location.reload()">Preencher Novamente</button>
     </div>
 </div>
 
@@ -318,90 +292,29 @@
             }
         });
 
-        return { getTags: () => [...tags] };
+        return {
+            getTags: () => [...tags]
+        };
     }
 
     const companiesManager = setupTagInput('companiesContainer', 'companyNameInput');
     const keywordsManager = setupTagInput('keywordsContainer', 'keywordsInput');
     const titlesManager = setupTagInput('titlesContainer', 'titlesInput');
 
-    let urlFinalApollo = "";
-
-    // Função customizada para encodar mantendo %20 em vez de +
-    function strictEncode(str) {
-        return encodeURIComponent(str).replace(/%20/g, '%20');
-    }
-
     document.getElementById('apolloForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const employeesMin = document.getElementById('employeesMin').value;
-        const employeesMax = document.getElementById('employeesMax').value;
-        const resultCard = document.getElementById('resultCard');
-        const urlDisplay = document.getElementById('urlDisplay');
+        // Pega as listas limpas direto dos arrays do JavaScript
+        const listaEmpresas = companiesManager.getTags();
+        const listaCargos = titlesManager.getTags();
 
-        // Estruturação obrigatória de parâmetros iniciais idêntica à busca manual
-        let urlParts = [
-            "page=1",
-            "finderViewMode=candidate",
-            "sortByField=%5Bnone%5D",
-            "sortAscending=false"
-        ];
+        // Alimenta os textareas ocultos quebrando cada item por uma linha nova (\n)
+        document.getElementById('outputCompanies').value = listaEmpresas.join('\n');
+        document.getElementById('outputTitles').value = listaCargos.join('\n');
 
-        // Processamento das Empresas (Une com quebra de linha \n e codifica estritamente)
-        const empresas = companiesManager.getTags();
-        if (empresas.length > 0) {
-            const companiesString = empresas.join('\n');
-            urlParts.push("organizationDomains=" + strictEncode(companiesString));
-        }
-
-        // Processamento dos Cargos
-        const cargos = titlesManager.getTags();
-        if (cargos.length > 0) {
-            const titlesString = cargos.join('\n');
-            urlParts.push("personTitles=" + strictEncode(titlesString));
-        }
-
-        // Processamento de Palavras-Chaves
-        const palavrasChaves = keywordsManager.getTags();
-        if (palavrasChaves.length > 0) {
-            urlParts.push("qKeywords=" + strictEncode(palavrasChaves.join(',')));
-        }
-
-        // Processamento do tamanho de funcionários
-        if (employeesMin || employeesMax) {
-            const min = employeesMin ? parseInt(employeesMin, 10) : '';
-            const max = employeesMax ? parseInt(employeesMax, 10) : '';
-            urlParts.push("organizationNumEmployees=" + strictEncode(`${min},${max}`));
-        }
-
-        // Junta a URL base com as partes corrigidas usando "&"
-        urlFinalApollo = "https://app.apollo.io/#/people?" + urlParts.join('&');
-
-        // Exibe o link idêntico na interface
-        urlDisplay.innerText = urlFinalApollo;
-        resultCard.style.display = "block";
-        
-        resultCard.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    document.getElementById('btnCopyLink').addEventListener('click', function() {
-        if (!urlFinalApollo) return;
-        navigator.clipboard.writeText(urlFinalApollo).then(() => {
-            const originalText = this.innerText;
-            this.innerText = "Copiado!";
-            this.style.backgroundColor = "#27ae60";
-            setTimeout(() => {
-                this.innerText = originalText;
-                this.style.backgroundColor = "#2ecc71";
-            }, 2000);
-        });
-    });
-
-    document.getElementById('btnOpenLink').addEventListener('click', function() {
-        if (urlFinalApollo) {
-            window.open(urlFinalApollo, '_blank');
-        }
+        // Esconde o formulário original e exibe a caixinha de dados limpos
+        document.getElementById('apolloForm').style.display = 'none';
+        document.getElementById('automationResult').style.display = 'block';
     });
 </script>
 
